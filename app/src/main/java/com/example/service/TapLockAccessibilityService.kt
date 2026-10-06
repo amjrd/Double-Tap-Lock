@@ -4,6 +4,7 @@ import android.accessibilityservice.AccessibilityService
 import android.content.Context
 import android.content.Intent
 import android.os.Build
+import android.os.SystemClock
 import android.os.VibrationEffect
 import android.os.Vibrator
 import android.os.VibratorManager
@@ -11,38 +12,40 @@ import android.provider.Settings
 import android.text.TextUtils
 import android.util.Log
 import android.view.accessibility.AccessibilityEvent
-import com.example.data.PreferencesManager
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.launch
 import java.lang.ref.WeakReference
 
 class TapLockAccessibilityService : AccessibilityService() {
 
-    private val serviceScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
-    private lateinit var preferencesManager: PreferencesManager
+    private var vibrator: Vibrator? = null
 
     override fun onCreate() {
         super.onCreate()
-        preferencesManager = PreferencesManager(applicationContext)
+        initVibrator()
+    }
+
+    private fun initVibrator() {
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                val vm = getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as? VibratorManager
+                vibrator = vm?.defaultVibrator
+            } else {
+                @Suppress("DEPRECATION")
+                vibrator = getSystemService(Context.VIBRATOR_SERVICE) as? Vibrator
+            }
+        } catch (_: Exception) {}
     }
 
     override fun onServiceConnected() {
         super.onServiceConnected()
         instance = WeakReference(this)
         isServiceRunning = true
-        Log.d(TAG, "TapLockAccessibilityService connected successfully")
     }
 
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
-        // No event listening required - keeps battery consumption at 0%
+        // Zero event processing = 0% CPU & battery
     }
 
-    override fun onInterrupt() {
-        Log.d(TAG, "TapLockAccessibilityService interrupted")
-    }
+    override fun onInterrupt() {}
 
     override fun onUnbind(intent: Intent?): Boolean {
         instance = null
@@ -54,47 +57,28 @@ class TapLockAccessibilityService : AccessibilityService() {
         super.onDestroy()
         instance = null
         isServiceRunning = false
+        vibrator = null
     }
 
-    fun executeLockScreen(): Boolean {
-        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-            val result = performGlobalAction(GLOBAL_ACTION_LOCK_SCREEN)
-            if (result) {
-                triggerHapticFeedback()
-                serviceScope.launch {
-                    preferencesManager.incrementLockCount()
-                }
-            }
-            result
-        } else {
-            false
-        }
-    }
-
-    private fun triggerHapticFeedback() {
-        serviceScope.launch {
-            val isHapticEnabled = preferencesManager.hapticFeedbackEnabled.first()
-            if (!isHapticEnabled) return@launch
-
-            try {
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                    val vibratorManager = getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as? VibratorManager
-                    val vibrator = vibratorManager?.defaultVibrator
-                    vibrator?.vibrate(VibrationEffect.createPredefined(VibrationEffect.EFFECT_CLICK))
-                } else {
-                    @Suppress("DEPRECATION")
-                    val vibrator = getSystemService(Context.VIBRATOR_SERVICE) as? Vibrator
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                        vibrator?.vibrate(VibrationEffect.createOneShot(35, VibrationEffect.DEFAULT_AMPLITUDE))
+    fun executeLockScreenInstant(): Boolean {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            val locked = performGlobalAction(GLOBAL_ACTION_LOCK_SCREEN)
+            if (locked) {
+                // Instant hardware vibration (0ms delay)
+                try {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                        vibrator?.vibrate(VibrationEffect.createPredefined(VibrationEffect.EFFECT_CLICK))
+                    } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                        vibrator?.vibrate(VibrationEffect.createOneShot(25, VibrationEffect.DEFAULT_AMPLITUDE))
                     } else {
                         @Suppress("DEPRECATION")
-                        vibrator?.vibrate(35)
+                        vibrator?.vibrate(25)
                     }
-                }
-            } catch (e: Exception) {
-                Log.e(TAG, "Failed to vibrate", e)
+                } catch (_: Exception) {}
             }
+            return locked
         }
+        return false
     }
 
     companion object {
@@ -105,16 +89,11 @@ class TapLockAccessibilityService : AccessibilityService() {
         fun lockScreen(context: Context): Boolean {
             val service = instance?.get()
             return if (service != null) {
-                service.executeLockScreen()
+                service.executeLockScreenInstant()
             } else {
-                Log.w(TAG, "Accessibility service is not active")
+                Log.w(TAG, "Accessibility service not active")
                 false
             }
-        }
-
-        fun openNotificationShade(): Boolean {
-            val service = instance?.get() ?: return false
-            return service.performGlobalAction(GLOBAL_ACTION_NOTIFICATIONS)
         }
 
         fun isAccessibilityServiceEnabled(context: Context): Boolean {
