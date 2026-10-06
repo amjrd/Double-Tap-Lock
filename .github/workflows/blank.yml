@@ -25,10 +25,17 @@ jobs:
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
 
-      - name: Accept Android SDK Licenses & Install Components
+      - name: Accept Android SDK Licenses
         run: |
-          yes | sdkmanager --licenses 2>/dev/null || true
-          sdkmanager "platforms;android-35" "build-tools;35.0.0" 2>/dev/null || true
+          mkdir -p "$ANDROID_HOME/licenses" || true
+          echo "24333f8a63b6825ea9c5514f83c2829b004d1fee" >> "$ANDROID_HOME/licenses/android-sdk-license"
+          echo "84831b9409646a7f84e4a7b80282b542033f6b49" >> "$ANDROID_HOME/licenses/android-sdk-preview-license"
+          echo "d56f5187479edd1df58dce91108641bcc4970c06" >> "$ANDROID_HOME/licenses/android-sdk-license"
+
+      - name: Setup Gradle 9.3.1
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '9.3.1'
 
       - name: Prepare Keystore & Config Files
         run: |
@@ -39,21 +46,10 @@ jobs:
             keytool -genkey -v -keystore debug.keystore -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Debug,O=Android,C=US"
           fi
 
-      - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v4
-
-      - name: Ensure Gradlew Executable
-        run: |
-          if [ ! -f gradlew ]; then
-            gradle wrapper || true
-          fi
-          if [ -f gradlew ]; then
-            chmod +x gradlew
-          fi
-
       - name: Build Debug APK
         run: |
           if [ -f gradlew ]; then
+            chmod +x gradlew
             ./gradlew assembleDebug --no-daemon --no-configuration-cache --stacktrace
           else
             gradle assembleDebug --no-daemon --no-configuration-cache --stacktrace
@@ -65,4 +61,4 @@ jobs:
           name: TapLock-Pixel8-Debug-APK
           path: app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
-          retention-days: 30
+          retention-days: 14
