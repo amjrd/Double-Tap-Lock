@@ -1,0 +1,6 @@
+{
+  "name": "TapLock",
+  "description": "Double tap to lock screen and sleep on Pixel 8 and modern Android devices.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

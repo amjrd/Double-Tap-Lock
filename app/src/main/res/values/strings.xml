@@ -1,0 +1,12 @@
+<resources>
+    <string name="app_name">TapLock</string>
+    <string name="tile_name">إطفاء الشاشة</string>
+    <string name="accessibility_service_name">خدمة قفل الشاشة TapLock</string>
+    <string name="accessibility_service_description">تتيح قفل الشاشة بلمس مزدوج أو زر سريع دون الحاجة لزر الطاقة وبما يحافظ على فتح القفل ببصمة الإصبع والوجه على أجهزة Pixel 8.</string>
+    <string name="widget_name">ودجت إطفاء الشاشة</string>
+    <string name="widget_description">انقر نقراً مزدوجاً أو لمسة سريعة لإطفاء شاشة Pixel 8 على الفور من الشاشة الرئيسية.</string>
+    <string name="notification_channel_name">خدمة الزر العائم</string>
+    <string name="notification_channel_desc">إشعار تشغيل الزر العائم للنقر المزدوج على الشاشة</string>
+    <string name="overlay_notification_title">TapLock نشط</string>
+    <string name="overlay_notification_text">الزر العائم مفعل: انقر نقراً مزدوجاً لإطفاء الشاشة</string>
+</resources>
