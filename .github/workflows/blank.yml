@@ -28,7 +28,7 @@ jobs:
       - name: Accept Android SDK Licenses & Install Components
         run: |
           yes | sdkmanager --licenses 2>/dev/null || true
-          sdkmanager "platforms;android-36" "build-tools;36.0.0" 2>/dev/null || true
+          sdkmanager "platforms;android-35" "build-tools;35.0.0" 2>/dev/null || true
 
       - name: Prepare Keystore & Config Files
         run: |
