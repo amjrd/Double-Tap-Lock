@@ -45,14 +45,15 @@ class TapLockOverlayService : Service() {
     private var doubleTapSpeedMs: Int = 320
     private var pillOpacity: Float = 0.65f
     private var isSecretMode: Boolean = true
-    private var secretPosition: String = "TOP_RIGHT"
-    private var zoneSizeDp: Int = 72
+    private var zonePosition: String = "STATUS_BAR"
+    private var zoneHeightDp: Int = 52
 
+    private var touchDownX = 0f
+    private var touchDownY = 0f
+    private var isSwipeDown = false
     private var isDragging = false
     private var initialX = 0
     private var initialY = 0
-    private var initialTouchX = 0f
-    private var initialTouchY = 0f
 
     override fun onCreate() {
         super.onCreate()
@@ -76,7 +77,7 @@ class TapLockOverlayService : Service() {
 
         return NotificationCompat.Builder(this, TapLockApplication.CHANNEL_ID_OVERLAY)
             .setContentTitle("TapLock • قفل سري بالنقر المزدوج")
-            .setContentText("منطقة النقر المزدوج المخفية نشطة الآن")
+            .setContentText("منطقة النقر المزدوج الموسعة نشطة عبر كامل الشاشة")
             .setSmallIcon(R.drawable.ic_screen_off)
             .setContentIntent(pendingIntent)
             .setOngoing(true)
@@ -106,13 +107,13 @@ class TapLockOverlayService : Service() {
             }
             launch {
                 preferencesManager.secretPosition.collectLatest { pos ->
-                    secretPosition = pos
+                    zonePosition = pos
                     reapplyLayout()
                 }
             }
             launch {
-                preferencesManager.zoneSizeDp.collectLatest { size ->
-                    zoneSizeDp = size
+                preferencesManager.zoneHeightDp.collectLatest { height ->
+                    zoneHeightDp = height
                     reapplyLayout()
                 }
             }
@@ -142,8 +143,8 @@ class TapLockOverlayService : Service() {
         if (overlayView != null) return
 
         val params = WindowManager.LayoutParams(
-            dpToPx(zoneSizeDp.toFloat()),
-            dpToPx(zoneSizeDp.toFloat()),
+            WindowManager.LayoutParams.MATCH_PARENT,
+            dpToPx(zoneHeightDp.toFloat()),
             getWindowLayoutType(),
             WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
                     WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
@@ -171,39 +172,24 @@ class TapLockOverlayService : Service() {
 
     private fun applyGravityAndPosition(params: WindowManager.LayoutParams) {
         if (isSecretMode) {
-            when (secretPosition) {
-                "TOP_RIGHT" -> {
-                    params.gravity = Gravity.TOP or Gravity.END
-                    params.width = dpToPx(zoneSizeDp.toFloat())
-                    params.height = dpToPx(zoneSizeDp.toFloat())
-                    params.x = 0
-                    params.y = 0
-                }
-                "TOP_LEFT" -> {
-                    params.gravity = Gravity.TOP or Gravity.START
-                    params.width = dpToPx(zoneSizeDp.toFloat())
-                    params.height = dpToPx(zoneSizeDp.toFloat())
-                    params.x = 0
-                    params.y = 0
-                }
-                "STATUS_BAR" -> {
-                    params.gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL
-                    params.width = WindowManager.LayoutParams.MATCH_PARENT
-                    params.height = dpToPx(34f)
-                    params.x = 0
-                    params.y = 0
-                }
-                else -> {
-                    // Custom
-                    params.gravity = Gravity.TOP or Gravity.START
-                    params.width = dpToPx(zoneSizeDp.toFloat())
-                    params.height = dpToPx(zoneSizeDp.toFloat())
-                }
+            // Full width strip - Tap anywhere!
+            params.width = WindowManager.LayoutParams.MATCH_PARENT
+            params.height = dpToPx(zoneHeightDp.toFloat())
+            params.x = 0
+
+            if (zonePosition == "BOTTOM_NAV") {
+                params.gravity = Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL
+                params.y = 0
+            } else {
+                // STATUS_BAR (default)
+                params.gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL
+                params.y = 0
             }
         } else {
+            // Visible draggable pill
             params.gravity = Gravity.TOP or Gravity.START
-            params.width = dpToPx(48f)
-            params.height = dpToPx(48f)
+            params.width = dpToPx(50f)
+            params.height = dpToPx(50f)
             if (params.x == 0 && params.y == 0) {
                 params.x = 40
                 params.y = 300
@@ -227,12 +213,12 @@ class TapLockOverlayService : Service() {
         val view = overlayView ?: return
 
         if (isSecretMode) {
-            // Secret mode: completely invisible to the human eye!
+            // 100% invisible ghost zone - completely secret
             view.setImageDrawable(null)
             view.setBackgroundColor(Color.TRANSPARENT)
-            view.alpha = 0.01f // invisible touch receptor
+            view.alpha = 0.01f
         } else {
-            // Visible pill mode
+            // Visible pill
             view.setImageResource(R.drawable.ic_screen_off)
             val padding = dpToPx(10f)
             view.setPadding(padding, padding, padding, padding)
@@ -249,42 +235,76 @@ class TapLockOverlayService : Service() {
     private fun handleTouchEvent(event: MotionEvent): Boolean {
         val params = layoutParams ?: return false
 
-        // In secret mode, prevent accidental dragging
-        if (isSecretMode && secretPosition != "CUSTOM") {
-            if (event.action == MotionEvent.ACTION_UP) {
-                onZoneTapped()
+        if (isSecretMode) {
+            // Smart Anti-Interference handling:
+            // 1. Swipe down -> Open notification shade (no blocked status bar!)
+            // 2. Double tap anywhere -> Lock screen immediately!
+            // 3. Single tap -> Ignored, no accidental locking!
+            when (event.action) {
+                MotionEvent.ACTION_DOWN -> {
+                    touchDownX = event.rawX
+                    touchDownY = event.rawY
+                    isSwipeDown = false
+                    return true
+                }
+
+                MotionEvent.ACTION_MOVE -> {
+                    val dy = event.rawY - touchDownY
+                    val dx = abs(event.rawX - touchDownX)
+                    // If user slides finger down on top bar by > 32px
+                    if (dy > dpToPx(28f) && dy > dx && zonePosition != "BOTTOM_NAV") {
+                        if (!isSwipeDown) {
+                            isSwipeDown = true
+                            // Anti-interference: expand notification shade seamlessly!
+                            TapLockAccessibilityService.openNotificationShade()
+                        }
+                    }
+                    return true
+                }
+
+                MotionEvent.ACTION_UP -> {
+                    if (!isSwipeDown) {
+                        val dx = abs(event.rawX - touchDownX)
+                        val dy = abs(event.rawY - touchDownY)
+                        // If it is a crisp tap (not a drag)
+                        if (dx < dpToPx(20f) && dy < dpToPx(20f)) {
+                            onZoneTapped()
+                        }
+                    }
+                    return true
+                }
             }
             return true
-        }
-
-        when (event.action) {
-            MotionEvent.ACTION_DOWN -> {
-                initialX = params.x
-                initialY = params.y
-                initialTouchX = event.rawX
-                initialTouchY = event.rawY
-                isDragging = false
-                return true
-            }
-
-            MotionEvent.ACTION_MOVE -> {
-                val dx = event.rawX - initialTouchX
-                val dy = event.rawY - initialTouchY
-
-                if (abs(dx) > 12 || abs(dy) > 12) {
-                    isDragging = true
-                    params.x = initialX + dx.toInt()
-                    params.y = initialY + dy.toInt()
-                    overlayView?.let { windowManager.updateViewLayout(it, params) }
+        } else {
+            // Draggable visible pill mode
+            when (event.action) {
+                MotionEvent.ACTION_DOWN -> {
+                    initialX = params.x
+                    initialY = params.y
+                    touchDownX = event.rawX
+                    touchDownY = event.rawY
+                    isDragging = false
+                    return true
                 }
-                return true
-            }
 
-            MotionEvent.ACTION_UP -> {
-                if (!isDragging) {
-                    onZoneTapped()
+                MotionEvent.ACTION_MOVE -> {
+                    val dx = event.rawX - touchDownX
+                    val dy = event.rawY - touchDownY
+                    if (abs(dx) > 12 || abs(dy) > 12) {
+                        isDragging = true
+                        params.x = initialX + dx.toInt()
+                        params.y = initialY + dy.toInt()
+                        overlayView?.let { windowManager.updateViewLayout(it, params) }
+                    }
+                    return true
                 }
-                return true
+
+                MotionEvent.ACTION_UP -> {
+                    if (!isDragging) {
+                        onZoneTapped()
+                    }
+                    return true
+                }
             }
         }
         return false

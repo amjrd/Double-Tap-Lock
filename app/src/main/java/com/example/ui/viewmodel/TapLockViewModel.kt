@@ -29,8 +29,8 @@ data class TapLockUiState(
     val pillOpacity: Float = 0.65f,
     val lockCount: Int = 0,
     val secretModeEnabled: Boolean = true,
-    val secretPosition: String = "TOP_RIGHT",
-    val zoneSizeDp: Int = 72,
+    val secretPosition: String = "STATUS_BAR",
+    val zoneHeightDp: Int = 52,
     val testPadTapsCount: Int = 0,
     val testPadLastIntervalMs: Long? = null,
     val testPadStatusText: String = "انقر نقراً مزدوجاً هنا لتجربة سرعة الاستجابة",
@@ -56,8 +56,8 @@ private data class UserPreferences(
     val pillOpacity: Float = 0.65f,
     val lockCount: Int = 0,
     val secretModeEnabled: Boolean = true,
-    val secretPosition: String = "TOP_RIGHT",
-    val zoneSizeDp: Int = 72
+    val secretPosition: String = "STATUS_BAR",
+    val zoneHeightDp: Int = 52
 )
 
 class TapLockViewModel(application: Application) : AndroidViewModel(application) {
@@ -90,17 +90,17 @@ class TapLockViewModel(application: Application) : AndroidViewModel(application)
             pillOpacity = opacity,
             lockCount = locks,
             secretModeEnabled = true,
-            secretPosition = "TOP_RIGHT",
-            zoneSizeDp = 72
+            secretPosition = "STATUS_BAR",
+            zoneHeightDp = 52
         )
     }
 
     private val _secretPreferencesFlow = combine(
         preferencesManager.secretModeEnabled,
         preferencesManager.secretPosition,
-        preferencesManager.zoneSizeDp
-    ) { secret, position, size ->
-        Triple(secret, position, size)
+        preferencesManager.zoneHeightDp
+    ) { secret, position, height ->
+        Triple(secret, position, height)
     }
 
     val uiState: StateFlow<TapLockUiState> = combine(
@@ -119,7 +119,7 @@ class TapLockViewModel(application: Application) : AndroidViewModel(application)
             lockCount = prefs.lockCount,
             secretModeEnabled = secretPrefs.first,
             secretPosition = secretPrefs.second,
-            zoneSizeDp = secretPrefs.third,
+            zoneHeightDp = secretPrefs.third,
             testPadTapsCount = testState.tapsCount,
             testPadLastIntervalMs = testState.lastIntervalMs,
             testPadStatusText = testState.message,
@@ -187,6 +187,12 @@ class TapLockViewModel(application: Application) : AndroidViewModel(application)
     fun setZoneSize(sizeDp: Int) {
         viewModelScope.launch {
             preferencesManager.setZoneSizeDp(sizeDp)
+        }
+    }
+
+    fun setZoneHeight(heightDp: Int) {
+        viewModelScope.launch {
+            preferencesManager.setZoneHeightDp(heightDp)
         }
     }
 

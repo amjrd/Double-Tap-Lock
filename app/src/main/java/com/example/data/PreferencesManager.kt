@@ -25,6 +25,7 @@ class PreferencesManager(private val context: Context) {
         val KEY_SECRET_MODE = booleanPreferencesKey("secret_mode_enabled")
         val KEY_SECRET_POSITION = androidx.datastore.preferences.core.stringPreferencesKey("secret_position")
         val KEY_ZONE_SIZE_DP = intPreferencesKey("zone_size_dp")
+        val KEY_ZONE_HEIGHT_DP = intPreferencesKey("zone_height_dp")
     }
 
     val floatingPillEnabled: Flow<Boolean> = context.dataStore.data.map { prefs ->
@@ -36,11 +37,15 @@ class PreferencesManager(private val context: Context) {
     }
 
     val secretPosition: Flow<String> = context.dataStore.data.map { prefs ->
-        prefs[KEY_SECRET_POSITION] ?: "TOP_RIGHT"
+        prefs[KEY_SECRET_POSITION] ?: "STATUS_BAR"
     }
 
     val zoneSizeDp: Flow<Int> = context.dataStore.data.map { prefs ->
         prefs[KEY_ZONE_SIZE_DP] ?: 72
+    }
+
+    val zoneHeightDp: Flow<Int> = context.dataStore.data.map { prefs ->
+        prefs[KEY_ZONE_HEIGHT_DP] ?: 48
     }
 
     val doubleTapSpeedMs: Flow<Int> = context.dataStore.data.map { prefs ->
@@ -108,6 +113,12 @@ class PreferencesManager(private val context: Context) {
     suspend fun setZoneSizeDp(sizeDp: Int) {
         context.dataStore.edit { prefs ->
             prefs[KEY_ZONE_SIZE_DP] = sizeDp
+        }
+    }
+
+    suspend fun setZoneHeightDp(heightDp: Int) {
+        context.dataStore.edit { prefs ->
+            prefs[KEY_ZONE_HEIGHT_DP] = heightDp
         }
     }
 

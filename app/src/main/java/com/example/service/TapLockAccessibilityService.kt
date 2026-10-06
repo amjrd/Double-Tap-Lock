@@ -112,6 +112,11 @@ class TapLockAccessibilityService : AccessibilityService() {
             }
         }
 
+        fun openNotificationShade(): Boolean {
+            val service = instance?.get() ?: return false
+            return service.performGlobalAction(GLOBAL_ACTION_NOTIFICATIONS)
+        }
+
         fun isAccessibilityServiceEnabled(context: Context): Boolean {
             if (isServiceRunning && instance?.get() != null) return true
 

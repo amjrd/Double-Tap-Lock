@@ -170,8 +170,8 @@ fun HomeScreen(
                 FloatingPillCard(
                     isPillEnabled = uiState.floatingPillEnabled,
                     isSecretMode = uiState.secretModeEnabled,
-                    secretPosition = uiState.secretPosition,
-                    zoneSizeDp = uiState.zoneSizeDp,
+                    zonePosition = uiState.secretPosition,
+                    zoneHeightDp = uiState.zoneHeightDp,
                     canDrawOverlays = uiState.canDrawOverlays,
                     pillOpacity = uiState.pillOpacity,
                     doubleTapSpeedMs = uiState.doubleTapSpeedMs,
@@ -182,11 +182,11 @@ fun HomeScreen(
                     onSecretModeToggle = { secret ->
                         viewModel.setSecretMode(secret)
                     },
-                    onSecretPositionChange = { pos ->
+                    onZonePositionChange = { pos ->
                         viewModel.setSecretPosition(pos)
                     },
-                    onZoneSizeChange = { size ->
-                        viewModel.setZoneSize(size)
+                    onZoneHeightChange = { height ->
+                        viewModel.setZoneHeight(height)
                     },
                     onRequestOverlayPermission = {
                         openOverlayPermissionSettings(context)

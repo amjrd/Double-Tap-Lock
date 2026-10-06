@@ -17,8 +17,9 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.LockClock
-import androidx.compose.material.icons.filled.Security
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Height
+import androidx.compose.material.icons.filled.Shield
 import androidx.compose.material.icons.filled.Speed
 import androidx.compose.material.icons.filled.TouchApp
 import androidx.compose.material.icons.filled.Vibration
@@ -55,16 +56,16 @@ import kotlin.math.roundToInt
 fun FloatingPillCard(
     isPillEnabled: Boolean,
     isSecretMode: Boolean,
-    secretPosition: String,
-    zoneSizeDp: Int,
+    zonePosition: String,
+    zoneHeightDp: Int,
     canDrawOverlays: Boolean,
     pillOpacity: Float,
     doubleTapSpeedMs: Int,
     hapticEnabled: Boolean,
     onPillToggle: (Boolean) -> Unit,
     onSecretModeToggle: (Boolean) -> Unit,
-    onSecretPositionChange: (String) -> Unit,
-    onZoneSizeChange: (Int) -> Unit,
+    onZonePositionChange: (String) -> Unit,
+    onZoneHeightChange: (Int) -> Unit,
     onRequestOverlayPermission: () -> Unit,
     onOpacityChange: (Float) -> Unit,
     onSpeedChange: (Int) -> Unit,
@@ -113,13 +114,13 @@ fun FloatingPillCard(
 
                     Column {
                         Text(
-                            text = "النقر المزدوج السري (Secret Double Tap)",
+                            text = "النقر المزدوج السري الشامل",
                             fontWeight = FontWeight.Bold,
                             fontSize = 15.sp,
                             color = Color.White
                         )
                         Text(
-                            text = if (isSecretMode) "منطقة لمس سرية ومخفية تماماً بدون أي أيقونة" else "أيقونة طافية مرئية على الشاشة",
+                            text = if (isSecretMode) "انقر مرتين في أي مكان بدون أيقونة ظاهرة" else "أيقونة طافية مرئية على الشاشة",
                             fontSize = 12.sp,
                             color = if (isSecretMode) AccentEmerald else MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -158,7 +159,7 @@ fun FloatingPillCard(
                     )
                 ) {
                     Text(
-                        text = "منح إذن الظهور فوق التطبيقات (إذن إلزامي للمنطقة السرية)",
+                        text = "منح إذن الظهور فوق التطبيقات (Overlay)",
                         fontWeight = FontWeight.Bold,
                         fontSize = 12.sp
                     )
@@ -201,7 +202,7 @@ fun FloatingPillCard(
                             color = Color.White
                         )
                         Text(
-                            text = if (isSecretMode) "الأيقونة مخفية 100% واللمس يعمل بسحر تام" else "الأيقونة ظاهرة على الشاشة",
+                            text = if (isSecretMode) "الشاشة نقية 100% واللمس يعمل في أي مكان" else "الأيقونة ظاهرة على الشاشة",
                             fontSize = 11.sp,
                             color = if (isSecretMode) AccentEmerald else MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -218,9 +219,44 @@ fun FloatingPillCard(
                 )
             }
 
-            // If Secret Mode is Enabled: Position Selector
+            // Anti-Interference Info Banner
             if (isSecretMode) {
                 Spacer(modifier = Modifier.height(14.dp))
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(14.dp))
+                        .background(Color(0xFF0F243A))
+                        .border(1.dp, CyanPrimary.copy(alpha = 0.25f), RoundedCornerShape(14.dp))
+                        .padding(14.dp)
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            imageVector = Icons.Default.Shield,
+                            contentDescription = "حماية التداخل",
+                            tint = CyanPrimary,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "تقنية منع التداخل الذكية (Zero Interference)",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 12.sp,
+                            color = CyanPrimary
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Text(
+                        text = "• النقر المزدوج في أي مكان يمين، وسط، أو يسار الشاشة = إطفاء فوري.\n• السحب لأسفل (Swipe Down) = تفتح ستارة الإشعارات فوراً دون أي إعاقة أو حجب.\n• النقرة العادية المفردة = يتم تجاهلها لمنع الإغلاق الخاطئ.",
+                        fontSize = 11.sp,
+                        lineHeight = 17.sp,
+                        color = Color(0xFFCBD5E1)
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(14.dp))
+
+                // Position Choice: Full Top Bar or Full Bottom Bar
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -229,7 +265,7 @@ fun FloatingPillCard(
                         .padding(14.dp)
                 ) {
                     Text(
-                        text = "اختر مكان النقر السري المفضل على شاشة هاتفك:",
+                        text = "موقع شريط النقر السري الواسع:",
                         fontWeight = FontWeight.Bold,
                         fontSize = 13.sp,
                         color = Color.White
@@ -240,25 +276,18 @@ fun FloatingPillCard(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        PositionChip(
-                            label = "أعلى اليمين 🔋",
-                            subLabel = "بجانب البطارية",
-                            isSelected = secretPosition == "TOP_RIGHT",
-                            onClick = { onSecretPositionChange("TOP_RIGHT") },
+                        PositionBarChip(
+                            label = "الشريط العلوي كاملاً (شريط الحالة)",
+                            subLabel = "انقر مرتين في أي مكان بأعلى الهاتف",
+                            isSelected = zonePosition == "STATUS_BAR",
+                            onClick = { onZonePositionChange("STATUS_BAR") },
                             modifier = Modifier.weight(1f)
                         )
-                        PositionChip(
-                            label = "شريط الحالة 📏",
-                            subLabel = "كامل أعلى الشاشة",
-                            isSelected = secretPosition == "STATUS_BAR",
-                            onClick = { onSecretPositionChange("STATUS_BAR") },
-                            modifier = Modifier.weight(1.2f)
-                        )
-                        PositionChip(
-                            label = "أعلى اليسار ⏰",
-                            subLabel = "بجانب الساعة",
-                            isSelected = secretPosition == "TOP_LEFT",
-                            onClick = { onSecretPositionChange("TOP_LEFT") },
+                        PositionBarChip(
+                            label = "الشريط السفلي (أسفل الشاشة)",
+                            subLabel = "انقر مرتين في أي مكان بأسفل الهاتف",
+                            isSelected = zonePosition == "BOTTOM_NAV",
+                            onClick = { onZonePositionChange("BOTTOM_NAV") },
                             modifier = Modifier.weight(1f)
                         )
                     }
@@ -266,46 +295,54 @@ fun FloatingPillCard(
 
                 Spacer(modifier = Modifier.height(12.dp))
 
-                // Zone Size Slider
-                if (secretPosition != "STATUS_BAR") {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(14.dp))
-                            .background(SlateSurfaceVariant)
-                            .padding(14.dp)
+                // Zone Height (Width expansion) Slider
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(14.dp))
+                        .background(SlateSurfaceVariant)
+                        .padding(14.dp)
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        modifier = Modifier.fillMaxWidth()
                     ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = Icons.Default.Height,
+                                contentDescription = "عرض المساحة",
+                                tint = AccentEmerald,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
                             Text(
-                                text = "حجم مساحة النقر السرية (لسهولة اللمس)",
+                                text = "سعة مساحة النقر (ارتفاع الشريط)",
                                 fontWeight = FontWeight.SemiBold,
                                 fontSize = 13.sp,
                                 color = Color.White
                             )
-                            Text(
-                                text = "${zoneSizeDp}dp",
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 13.sp,
-                                color = AccentEmerald
-                            )
                         }
 
-                        Slider(
-                            value = zoneSizeDp.toFloat(),
-                            onValueChange = { onZoneSizeChange(it.roundToInt()) },
-                            valueRange = 48f..110f,
-                            steps = 5,
-                            colors = SliderDefaults.colors(
-                                thumbColor = AccentEmerald,
-                                activeTrackColor = AccentEmerald,
-                                inactiveTrackColor = SlateBorder
-                            )
+                        Text(
+                            text = "${zoneHeightDp}dp (مساحة واسعة)",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 13.sp,
+                            color = AccentEmerald
                         )
                     }
+
+                    Slider(
+                        value = zoneHeightDp.toFloat(),
+                        onValueChange = { onZoneHeightChange(it.roundToInt()) },
+                        valueRange = 36f..84f,
+                        steps = 5,
+                        colors = SliderDefaults.colors(
+                            thumbColor = AccentEmerald,
+                            activeTrackColor = AccentEmerald,
+                            inactiveTrackColor = SlateBorder
+                        )
+                    )
                 }
             } else {
                 // If visible mode: Opacity slider
@@ -450,7 +487,7 @@ fun FloatingPillCard(
 }
 
 @Composable
-private fun PositionChip(
+private fun PositionBarChip(
     label: String,
     subLabel: String,
     isSelected: Boolean,
@@ -459,15 +496,15 @@ private fun PositionChip(
 ) {
     Box(
         modifier = modifier
-            .clip(RoundedCornerShape(10.dp))
+            .clip(RoundedCornerShape(12.dp))
             .background(if (isSelected) AccentEmerald.copy(alpha = 0.22f) else Color(0xFF1E293B))
             .border(
                 1.5.dp,
                 if (isSelected) AccentEmerald else SlateBorder,
-                RoundedCornerShape(10.dp)
+                RoundedCornerShape(12.dp)
             )
             .clickable(onClick = onClick)
-            .padding(vertical = 10.dp, horizontal = 6.dp),
+            .padding(vertical = 12.dp, horizontal = 10.dp),
         contentAlignment = Alignment.Center
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -477,7 +514,7 @@ private fun PositionChip(
                 fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
                 color = if (isSelected) AccentEmerald else Color.White
             )
-            Spacer(modifier = Modifier.height(2.dp))
+            Spacer(modifier = Modifier.height(4.dp))
             Text(
                 text = subLabel,
                 fontSize = 10.sp,
