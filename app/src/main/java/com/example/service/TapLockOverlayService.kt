@@ -38,12 +38,16 @@ class TapLockOverlayService : Service() {
     private lateinit var windowManager: WindowManager
     private lateinit var preferencesManager: PreferencesManager
 
-    private var overlayView: View? = null
+    private var overlayView: ImageView? = null
     private var layoutParams: WindowManager.LayoutParams? = null
 
     private var lastTapTime: Long = 0L
     private var doubleTapSpeedMs: Int = 320
     private var pillOpacity: Float = 0.65f
+    private var isSecretMode: Boolean = true
+    private var secretPosition: String = "TOP_RIGHT"
+    private var zoneSizeDp: Int = 72
+
     private var isDragging = false
     private var initialX = 0
     private var initialY = 0
@@ -57,7 +61,6 @@ class TapLockOverlayService : Service() {
 
         startForeground(TapLockApplication.NOTIFICATION_ID_OVERLAY, createNotification())
         observePreferences()
-        setupOverlayView()
     }
 
     private fun createNotification(): Notification {
@@ -72,8 +75,8 @@ class TapLockOverlayService : Service() {
         )
 
         return NotificationCompat.Builder(this, TapLockApplication.CHANNEL_ID_OVERLAY)
-            .setContentTitle(getString(R.string.overlay_notification_title))
-            .setContentText(getString(R.string.overlay_notification_text))
+            .setContentTitle("TapLock • قفل سري بالنقر المزدوج")
+            .setContentText("منطقة النقر المزدوج المخفية نشطة الآن")
             .setSmallIcon(R.drawable.ic_screen_off)
             .setContentIntent(pendingIntent)
             .setOngoing(true)
@@ -91,16 +94,46 @@ class TapLockOverlayService : Service() {
             launch {
                 preferencesManager.pillOpacity.collectLatest { opacity ->
                     pillOpacity = opacity
-                    overlayView?.alpha = opacity
+                    updateAppearance()
+                }
+            }
+            launch {
+                preferencesManager.secretModeEnabled.collectLatest { secret ->
+                    isSecretMode = secret
+                    updateAppearance()
+                    reapplyLayout()
+                }
+            }
+            launch {
+                preferencesManager.secretPosition.collectLatest { pos ->
+                    secretPosition = pos
+                    reapplyLayout()
+                }
+            }
+            launch {
+                preferencesManager.zoneSizeDp.collectLatest { size ->
+                    zoneSizeDp = size
+                    reapplyLayout()
                 }
             }
             launch {
                 preferencesManager.floatingPillEnabled.collectLatest { enabled ->
                     if (!enabled) {
                         stopSelf()
+                    } else if (overlayView == null) {
+                        setupOverlayView()
                     }
                 }
             }
+        }
+    }
+
+    private fun getWindowLayoutType(): Int {
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
+        } else {
+            @Suppress("DEPRECATION")
+            WindowManager.LayoutParams.TYPE_PHONE
         }
     }
 
@@ -108,47 +141,26 @@ class TapLockOverlayService : Service() {
     private fun setupOverlayView() {
         if (overlayView != null) return
 
-        val dpSize = dpToPx(48f)
-        val windowType = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
-        } else {
-            @Suppress("DEPRECATION")
-            WindowManager.LayoutParams.TYPE_PHONE
-        }
-
         val params = WindowManager.LayoutParams(
-            dpSize,
-            dpSize,
-            windowType,
+            dpToPx(zoneSizeDp.toFloat()),
+            dpToPx(zoneSizeDp.toFloat()),
+            getWindowLayoutType(),
             WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
                     WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
             PixelFormat.TRANSLUCENT
-        ).apply {
-            gravity = Gravity.TOP or Gravity.START
-            x = 40
-            y = 300
-        }
+        )
+
+        applyGravityAndPosition(params)
         layoutParams = params
 
-        // Create pill UI view
-        val pill = ImageView(this).apply {
-            setImageResource(R.drawable.ic_screen_off)
-            val padding = dpToPx(10f)
-            setPadding(padding, padding, padding, padding)
-            setColorFilter(Color.parseColor("#38BDF8"))
-            background = GradientDrawable().apply {
-                shape = GradientDrawable.OVAL
-                setColor(Color.parseColor("#1E293B"))
-                setStroke(dpToPx(1.5f), Color.parseColor("#38BDF8"))
-            }
-            alpha = pillOpacity
-        }
-
-        pill.setOnTouchListener { _, event ->
+        val view = ImageView(this)
+        view.setOnTouchListener { _, event ->
             handleTouchEvent(event)
         }
 
-        overlayView = pill
+        overlayView = view
+        updateAppearance()
+
         try {
             windowManager.addView(overlayView, layoutParams)
         } catch (e: Exception) {
@@ -157,8 +169,93 @@ class TapLockOverlayService : Service() {
         }
     }
 
+    private fun applyGravityAndPosition(params: WindowManager.LayoutParams) {
+        if (isSecretMode) {
+            when (secretPosition) {
+                "TOP_RIGHT" -> {
+                    params.gravity = Gravity.TOP or Gravity.END
+                    params.width = dpToPx(zoneSizeDp.toFloat())
+                    params.height = dpToPx(zoneSizeDp.toFloat())
+                    params.x = 0
+                    params.y = 0
+                }
+                "TOP_LEFT" -> {
+                    params.gravity = Gravity.TOP or Gravity.START
+                    params.width = dpToPx(zoneSizeDp.toFloat())
+                    params.height = dpToPx(zoneSizeDp.toFloat())
+                    params.x = 0
+                    params.y = 0
+                }
+                "STATUS_BAR" -> {
+                    params.gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL
+                    params.width = WindowManager.LayoutParams.MATCH_PARENT
+                    params.height = dpToPx(34f)
+                    params.x = 0
+                    params.y = 0
+                }
+                else -> {
+                    // Custom
+                    params.gravity = Gravity.TOP or Gravity.START
+                    params.width = dpToPx(zoneSizeDp.toFloat())
+                    params.height = dpToPx(zoneSizeDp.toFloat())
+                }
+            }
+        } else {
+            params.gravity = Gravity.TOP or Gravity.START
+            params.width = dpToPx(48f)
+            params.height = dpToPx(48f)
+            if (params.x == 0 && params.y == 0) {
+                params.x = 40
+                params.y = 300
+            }
+        }
+    }
+
+    private fun reapplyLayout() {
+        val view = overlayView ?: return
+        val params = layoutParams ?: return
+
+        applyGravityAndPosition(params)
+        try {
+            windowManager.updateViewLayout(view, params)
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to update overlay layout", e)
+        }
+    }
+
+    private fun updateAppearance() {
+        val view = overlayView ?: return
+
+        if (isSecretMode) {
+            // Secret mode: completely invisible to the human eye!
+            view.setImageDrawable(null)
+            view.setBackgroundColor(Color.TRANSPARENT)
+            view.alpha = 0.01f // invisible touch receptor
+        } else {
+            // Visible pill mode
+            view.setImageResource(R.drawable.ic_screen_off)
+            val padding = dpToPx(10f)
+            view.setPadding(padding, padding, padding, padding)
+            view.setColorFilter(Color.parseColor("#38BDF8"))
+            view.background = GradientDrawable().apply {
+                shape = GradientDrawable.OVAL
+                setColor(Color.parseColor("#1E293B"))
+                setStroke(dpToPx(1.5f), Color.parseColor("#38BDF8"))
+            }
+            view.alpha = pillOpacity
+        }
+    }
+
     private fun handleTouchEvent(event: MotionEvent): Boolean {
         val params = layoutParams ?: return false
+
+        // In secret mode, prevent accidental dragging
+        if (isSecretMode && secretPosition != "CUSTOM") {
+            if (event.action == MotionEvent.ACTION_UP) {
+                onZoneTapped()
+            }
+            return true
+        }
 
         when (event.action) {
             MotionEvent.ACTION_DOWN -> {
@@ -174,7 +271,7 @@ class TapLockOverlayService : Service() {
                 val dx = event.rawX - initialTouchX
                 val dy = event.rawY - initialTouchY
 
-                if (abs(dx) > 10 || abs(dy) > 10) {
+                if (abs(dx) > 12 || abs(dy) > 12) {
                     isDragging = true
                     params.x = initialX + dx.toInt()
                     params.y = initialY + dy.toInt()
@@ -185,7 +282,7 @@ class TapLockOverlayService : Service() {
 
             MotionEvent.ACTION_UP -> {
                 if (!isDragging) {
-                    onPillTapped()
+                    onZoneTapped()
                 }
                 return true
             }
@@ -193,16 +290,15 @@ class TapLockOverlayService : Service() {
         return false
     }
 
-    private fun onPillTapped() {
+    private fun onZoneTapped() {
         val currentTime = System.currentTimeMillis()
         val interval = currentTime - lastTapTime
 
-        if (interval <= doubleTapSpeedMs) {
+        if (interval in 1..doubleTapSpeedMs) {
             // Double tap recognized! Lock the screen!
             lastTapTime = 0L
             val locked = TapLockAccessibilityService.lockScreen(this)
             if (!locked) {
-                // If accessibility service is not active, open guide
                 val intent = Intent(this, MainActivity::class.java).apply {
                     flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
                     putExtra("OPEN_ACCESSIBILITY_GUIDE", true)
@@ -212,10 +308,11 @@ class TapLockOverlayService : Service() {
         } else {
             // First tap registered
             lastTapTime = currentTime
-            // Quick subtle pulse animation
-            overlayView?.animate()?.scaleX(1.2f)?.scaleY(1.2f)?.setDuration(80)?.withEndAction {
-                overlayView?.animate()?.scaleX(1.0f)?.scaleY(1.0f)?.setDuration(80)?.start()
-            }?.start()
+            if (!isSecretMode) {
+                overlayView?.animate()?.scaleX(1.2f)?.scaleY(1.2f)?.setDuration(80)?.withEndAction {
+                    overlayView?.animate()?.scaleX(1.0f)?.scaleY(1.0f)?.setDuration(80)?.start()
+                }?.start()
+            }
         }
     }
 

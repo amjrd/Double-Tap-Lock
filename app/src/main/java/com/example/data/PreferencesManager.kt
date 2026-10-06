@@ -22,10 +22,25 @@ class PreferencesManager(private val context: Context) {
         val KEY_PILL_OPACITY = floatPreferencesKey("pill_opacity")
         val KEY_LOCK_COUNT = intPreferencesKey("lock_count")
         val KEY_SINGLE_TAP_LOCK = booleanPreferencesKey("single_tap_lock")
+        val KEY_SECRET_MODE = booleanPreferencesKey("secret_mode_enabled")
+        val KEY_SECRET_POSITION = androidx.datastore.preferences.core.stringPreferencesKey("secret_position")
+        val KEY_ZONE_SIZE_DP = intPreferencesKey("zone_size_dp")
     }
 
     val floatingPillEnabled: Flow<Boolean> = context.dataStore.data.map { prefs ->
         prefs[KEY_FLOATING_PILL] ?: false
+    }
+
+    val secretModeEnabled: Flow<Boolean> = context.dataStore.data.map { prefs ->
+        prefs[KEY_SECRET_MODE] ?: true
+    }
+
+    val secretPosition: Flow<String> = context.dataStore.data.map { prefs ->
+        prefs[KEY_SECRET_POSITION] ?: "TOP_RIGHT"
+    }
+
+    val zoneSizeDp: Flow<Int> = context.dataStore.data.map { prefs ->
+        prefs[KEY_ZONE_SIZE_DP] ?: 72
     }
 
     val doubleTapSpeedMs: Flow<Int> = context.dataStore.data.map { prefs ->
@@ -75,6 +90,24 @@ class PreferencesManager(private val context: Context) {
     suspend fun setSingleTapLock(enabled: Boolean) {
         context.dataStore.edit { prefs ->
             prefs[KEY_SINGLE_TAP_LOCK] = enabled
+        }
+    }
+
+    suspend fun setSecretModeEnabled(enabled: Boolean) {
+        context.dataStore.edit { prefs ->
+            prefs[KEY_SECRET_MODE] = enabled
+        }
+    }
+
+    suspend fun setSecretPosition(position: String) {
+        context.dataStore.edit { prefs ->
+            prefs[KEY_SECRET_POSITION] = position
+        }
+    }
+
+    suspend fun setZoneSizeDp(sizeDp: Int) {
+        context.dataStore.edit { prefs ->
+            prefs[KEY_ZONE_SIZE_DP] = sizeDp
         }
     }
 

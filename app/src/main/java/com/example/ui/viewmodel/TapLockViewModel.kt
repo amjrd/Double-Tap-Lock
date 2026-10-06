@@ -28,6 +28,9 @@ data class TapLockUiState(
     val hapticFeedbackEnabled: Boolean = true,
     val pillOpacity: Float = 0.65f,
     val lockCount: Int = 0,
+    val secretModeEnabled: Boolean = true,
+    val secretPosition: String = "TOP_RIGHT",
+    val zoneSizeDp: Int = 72,
     val testPadTapsCount: Int = 0,
     val testPadLastIntervalMs: Long? = null,
     val testPadStatusText: String = "انقر نقراً مزدوجاً هنا لتجربة سرعة الاستجابة",
@@ -51,7 +54,10 @@ private data class UserPreferences(
     val doubleTapSpeedMs: Int = 320,
     val hapticFeedbackEnabled: Boolean = true,
     val pillOpacity: Float = 0.65f,
-    val lockCount: Int = 0
+    val lockCount: Int = 0,
+    val secretModeEnabled: Boolean = true,
+    val secretPosition: String = "TOP_RIGHT",
+    val zoneSizeDp: Int = 72
 )
 
 class TapLockViewModel(application: Application) : AndroidViewModel(application) {
@@ -82,15 +88,27 @@ class TapLockViewModel(application: Application) : AndroidViewModel(application)
             doubleTapSpeedMs = speed,
             hapticFeedbackEnabled = haptic,
             pillOpacity = opacity,
-            lockCount = locks
+            lockCount = locks,
+            secretModeEnabled = true,
+            secretPosition = "TOP_RIGHT",
+            zoneSizeDp = 72
         )
+    }
+
+    private val _secretPreferencesFlow = combine(
+        preferencesManager.secretModeEnabled,
+        preferencesManager.secretPosition,
+        preferencesManager.zoneSizeDp
+    ) { secret, position, size ->
+        Triple(secret, position, size)
     }
 
     val uiState: StateFlow<TapLockUiState> = combine(
         _systemPermissions,
         _testPadState,
-        _userPreferencesFlow
-    ) { perms, testState, prefs ->
+        _userPreferencesFlow,
+        _secretPreferencesFlow
+    ) { perms, testState, prefs, secretPrefs ->
         TapLockUiState(
             isAccessibilityEnabled = perms.isAccessibilityEnabled,
             canDrawOverlays = perms.canDrawOverlays,
@@ -99,6 +117,9 @@ class TapLockViewModel(application: Application) : AndroidViewModel(application)
             hapticFeedbackEnabled = prefs.hapticFeedbackEnabled,
             pillOpacity = prefs.pillOpacity,
             lockCount = prefs.lockCount,
+            secretModeEnabled = secretPrefs.first,
+            secretPosition = secretPrefs.second,
+            zoneSizeDp = secretPrefs.third,
             testPadTapsCount = testState.tapsCount,
             testPadLastIntervalMs = testState.lastIntervalMs,
             testPadStatusText = testState.message,
@@ -148,6 +169,24 @@ class TapLockViewModel(application: Application) : AndroidViewModel(application)
     fun setPillOpacity(opacity: Float) {
         viewModelScope.launch {
             preferencesManager.setPillOpacity(opacity)
+        }
+    }
+
+    fun setSecretMode(enabled: Boolean) {
+        viewModelScope.launch {
+            preferencesManager.setSecretModeEnabled(enabled)
+        }
+    }
+
+    fun setSecretPosition(position: String) {
+        viewModelScope.launch {
+            preferencesManager.setSecretPosition(position)
+        }
+    }
+
+    fun setZoneSize(sizeDp: Int) {
+        viewModelScope.launch {
+            preferencesManager.setZoneSizeDp(sizeDp)
         }
     }
 

@@ -169,12 +169,24 @@ fun HomeScreen(
                 // Floating Pill Double Tap Customization Card
                 FloatingPillCard(
                     isPillEnabled = uiState.floatingPillEnabled,
+                    isSecretMode = uiState.secretModeEnabled,
+                    secretPosition = uiState.secretPosition,
+                    zoneSizeDp = uiState.zoneSizeDp,
                     canDrawOverlays = uiState.canDrawOverlays,
                     pillOpacity = uiState.pillOpacity,
                     doubleTapSpeedMs = uiState.doubleTapSpeedMs,
                     hapticEnabled = uiState.hapticFeedbackEnabled,
                     onPillToggle = { enabled ->
                         viewModel.setFloatingPill(enabled)
+                    },
+                    onSecretModeToggle = { secret ->
+                        viewModel.setSecretMode(secret)
+                    },
+                    onSecretPositionChange = { pos ->
+                        viewModel.setSecretPosition(pos)
+                    },
+                    onZoneSizeChange = { size ->
+                        viewModel.setZoneSize(size)
                     },
                     onRequestOverlayPermission = {
                         openOverlayPermissionSettings(context)
