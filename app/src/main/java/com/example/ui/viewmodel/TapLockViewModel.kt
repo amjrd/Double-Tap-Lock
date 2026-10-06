@@ -19,7 +19,8 @@ import kotlinx.coroutines.launch
 data class TapLockUiState(
     val isAccessibilityEnabled: Boolean = false,
     val canDrawOverlays: Boolean = false,
-    val isServiceActive: Boolean = false
+    val isServiceActive: Boolean = false,
+    val isGuideVisible: Boolean = false
 )
 
 class TapLockViewModel(application: Application) : AndroidViewModel(application) {
@@ -36,12 +37,14 @@ class TapLockViewModel(application: Application) : AndroidViewModel(application)
 
     val uiState: StateFlow<TapLockUiState> = combine(
         _permissions,
-        preferencesManager.isServiceEnabled
-    ) { perms, isEnabled ->
+        preferencesManager.isServiceEnabled,
+        preferencesManager.isVisibleGuide
+    ) { perms, isEnabled, isGuide ->
         TapLockUiState(
             isAccessibilityEnabled = perms.first,
             canDrawOverlays = perms.second,
-            isServiceActive = isEnabled && perms.first && perms.second
+            isServiceActive = isEnabled && perms.first && perms.second,
+            isGuideVisible = isGuide
         )
     }.stateIn(
         scope = viewModelScope,
@@ -69,6 +72,19 @@ class TapLockViewModel(application: Application) : AndroidViewModel(application)
             } else {
                 TapLockOverlayService.stop(context)
             }
+        }
+    }
+
+    fun togglePositionGuide(visible: Boolean) {
+        viewModelScope.launch {
+            preferencesManager.setVisibleGuide(visible)
+        }
+    }
+
+    fun resetToSidePosition() {
+        viewModelScope.launch {
+            // Safe side edge position away from top notch & status bar
+            preferencesManager.setOverlayPosition(30, 450)
         }
     }
 

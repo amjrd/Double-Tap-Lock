@@ -5,9 +5,6 @@ import android.content.Intent
 import android.net.Uri
 import android.os.Build
 import android.provider.Settings
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -28,9 +25,13 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.NearMe
 import androidx.compose.material.icons.filled.PowerSettingsNew
-import androidx.compose.material.icons.filled.Security
+import androidx.compose.material.icons.filled.RestartAlt
+import androidx.compose.material.icons.filled.Shield
 import androidx.compose.material.icons.filled.TouchApp
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -39,6 +40,7 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -73,7 +75,6 @@ import com.example.ui.theme.SlateBorder
 import com.example.ui.theme.SlateSurface
 import com.example.ui.theme.SlateSurfaceVariant
 import com.example.ui.viewmodel.TapLockViewModel
-import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -85,7 +86,6 @@ fun HomeScreen(
     val lifecycleOwner = LocalLifecycleOwner.current
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
-    val scope = rememberCoroutineScope()
     val scrollState = rememberScrollState()
 
     DisposableEffect(lifecycleOwner) {
@@ -145,7 +145,7 @@ fun HomeScreen(
                 .padding(horizontal = 20.dp, vertical = 12.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // Main Status & Activation Card
+            // Main Power Card
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -194,9 +194,9 @@ fun HomeScreen(
 
                     Text(
                         text = if (uiState.isServiceActive)
-                            "انقر مرتين متتاليتين في أي مكان أعلى الشاشة لإطفاء الهاتف فوراً وبسرية تامة بدون أيقونات."
+                            "تم إنزال منطقة النقر بعيداً عن الأعلى لمنع أي تداخل مع ستارة الإشعارات أو المسح نهائياً."
                         else
-                            "قم بتفعيل المفتاح أدناه لبدء القفل السري السريع بدون لاج.",
+                            "فعّل المفتاح أدناه لتشغيل القفل السري السريع في أي مكان تختاره.",
                         fontSize = 13.sp,
                         textAlign = TextAlign.Center,
                         lineHeight = 18.sp,
@@ -215,7 +215,7 @@ fun HomeScreen(
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
                         Text(
-                            text = "تشغيل النقر المزدوج السري",
+                            text = "تشغيل النقر المزدوج الحر",
                             fontWeight = FontWeight.SemiBold,
                             fontSize = 14.sp,
                             color = Color.White
@@ -243,6 +243,131 @@ fun HomeScreen(
                             modifier = Modifier.testTag("main_service_toggle")
                         )
                     }
+                }
+            }
+
+            // Free Repositioning Card (سحب وإفلات في أي مكان بحرية تامة)
+            if (uiState.isServiceActive) {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(20.dp),
+                    colors = CardDefaults.cardColors(containerColor = SlateSurface),
+                    border = BorderStroke(1.dp, SlateBorder)
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(20.dp)
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = Icons.Default.NearMe,
+                                contentDescription = null,
+                                tint = CyanPrimary,
+                                modifier = Modifier.size(20.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = "تحديد مكان النقر بحرية (سحب وإفلات)",
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 14.sp,
+                                color = Color.White
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.height(6.dp))
+
+                        Text(
+                            text = "يمكنك إظهار نقطة اللمس مؤقتاً وسحبها بإصبعك إلى أي مكان مفضل في الشاشة (مثلاً على الحافة الجانبية أو بجانب الإبهام) لتفادي أي تداخل مع شريط الإشعارات.",
+                            fontSize = 12.sp,
+                            lineHeight = 17.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+
+                        Spacer(modifier = Modifier.height(14.dp))
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            Button(
+                                onClick = {
+                                    viewModel.togglePositionGuide(!uiState.isGuideVisible)
+                                },
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .height(46.dp),
+                                shape = RoundedCornerShape(12.dp),
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = if (uiState.isGuideVisible) AccentEmerald else SlateSurfaceVariant,
+                                    contentColor = Color.White
+                                )
+                            ) {
+                                Icon(
+                                    imageVector = if (uiState.isGuideVisible) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    text = if (uiState.isGuideVisible) "إخفاء الدائرة الآن 👻" else "إظهار الدائرة لسحبها 🎯",
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+
+                            OutlinedButton(
+                                onClick = {
+                                    viewModel.resetToSidePosition()
+                                },
+                                modifier = Modifier.height(46.dp),
+                                shape = RoundedCornerShape(12.dp),
+                                border = BorderStroke(1.dp, SlateBorder),
+                                colors = ButtonDefaults.outlinedButtonColors(
+                                    contentColor = Color(0xFF94A3B8)
+                                )
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.RestartAlt,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text("إلى الجانب", fontSize = 11.sp)
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Zero Conflict Assurance Banner
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(14.dp))
+                    .background(Color(0xFF0F243A))
+                    .padding(horizontal = 14.dp, vertical = 12.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Shield,
+                    contentDescription = null,
+                    tint = CyanPrimary,
+                    modifier = Modifier.size(20.dp)
+                )
+                Spacer(modifier = Modifier.width(10.dp))
+                Column {
+                    Text(
+                        text = "نظام مضاد للتداخل (Non-Conflit 100%)",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 12.sp,
+                        color = CyanPrimary
+                    )
+                    Text(
+                        text = "تم تحرير أعلى الشاشة؛ سحب ستارة الإشعارات والمسح (الفسخ) يعمل الآن بحرية كاملة دون أي اعتراض.",
+                        fontSize = 11.sp,
+                        color = Color(0xFFCBD5E1)
+                    )
                 }
             }
 
@@ -320,7 +445,6 @@ fun HomeScreen(
                     }
                 }
             } else {
-                // Permissions All Good
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -337,7 +461,7 @@ fun HomeScreen(
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
-                        text = "كافة الأذونات ممنوحة بنجاح والتطبيق يعمل بأعلى سرعة",
+                        text = "كافة الأذونات جاهزة بنجاح",
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Medium,
                         color = AccentEmerald
