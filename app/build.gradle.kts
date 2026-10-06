@@ -44,9 +44,19 @@ android {
       isMinifyEnabled = false
       proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
       val releaseStore = file(System.getenv("KEYSTORE_PATH") ?: "${rootDir}/my-upload-key.jks")
-      signingConfig = if (releaseStore.exists()) signingConfigs.getByName("release") else signingConfigs.getByName("debugConfig")
+      val debugStore = file("${rootDir}/debug.keystore")
+      signingConfig = when {
+        releaseStore.exists() -> signingConfigs.getByName("release")
+        debugStore.exists() -> signingConfigs.getByName("debugConfig")
+        else -> null
+      }
     }
-    debug { signingConfig = signingConfigs.getByName("debugConfig") }
+    debug {
+      val customKeystore = file("${rootDir}/debug.keystore")
+      if (customKeystore.exists()) {
+        signingConfig = signingConfigs.getByName("debugConfig")
+      }
+    }
   }
   compileOptions {
     sourceCompatibility = JavaVersion.VERSION_11
