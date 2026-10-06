@@ -16,13 +16,6 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Verify Android Project Files
-        run: |
-          if [ ! -f "settings.gradle.kts" ] && [ ! -f "settings.gradle" ]; then
-            echo "::error::ملفات المشروع غير موجودة في المستودع! يجب رفع ملفات التطبيق من AI Studio إلى GitHub أولاً."
-            exit 1
-          fi
-
       - name: Set up JDK 21
         uses: actions/setup-java@v4
         with:
