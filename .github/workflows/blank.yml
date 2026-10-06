@@ -21,9 +21,7 @@ jobs:
         with:
           java-version: '21'
           distribution: 'temurin'
-
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
+          cache: 'gradle'
 
       - name: Accept Android SDK Licenses
         run: |
@@ -31,11 +29,6 @@ jobs:
           echo "24333f8a63b6825ea9c5514f83c2829b004d1fee" >> "$ANDROID_HOME/licenses/android-sdk-license"
           echo "84831b9409646a7f84e4a7b80282b542033f6b49" >> "$ANDROID_HOME/licenses/android-sdk-preview-license"
           echo "d56f5187479edd1df58dce91108641bcc4970c06" >> "$ANDROID_HOME/licenses/android-sdk-license"
-
-      - name: Setup Gradle 9.3.1
-        uses: gradle/actions/setup-gradle@v4
-        with:
-          gradle-version: '9.3.1'
 
       - name: Prepare Keystore & Config Files
         run: |
@@ -45,15 +38,17 @@ jobs:
           elif [ ! -f debug.keystore ]; then
             keytool -genkey -v -keystore debug.keystore -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Debug,O=Android,C=US"
           fi
+          if [ ! -f app/google-services.json ]; then
+            cat << "EOF" > app/google-services.json
+          {"project_info":{"project_number":"123456789","project_id":"taplock","storage_bucket":"taplock.appspot.com"},"client":[{"client_info":{"mobilesdk_app_id":"1:123456789:android:abcdef","android_client_info":{"package_name":"com.aistudio.taplock.pixel"}},"api_key":[{"current_key":"dummy_key"}]}],"configuration_version":"1"}
+          EOF
+          fi
+
+      - name: Grant Execute Permission for Gradlew
+        run: chmod +x gradlew
 
       - name: Build Debug APK
-        run: |
-          if [ -f gradlew ]; then
-            chmod +x gradlew
-            ./gradlew assembleDebug --no-daemon --no-configuration-cache --stacktrace
-          else
-            gradle assembleDebug --no-daemon --no-configuration-cache --stacktrace
-          fi
+        run: ./gradlew assembleDebug --no-daemon --stacktrace
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
